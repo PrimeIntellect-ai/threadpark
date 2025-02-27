@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <cerrno>
 
-#include <sys/futex.h>     // for FUTEX_WAIT, FUTEX_WAKE
-#include <sys/time.h>      // for struct timespec if needed
+#include <sys/futex.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 struct tpark_handle_t {
