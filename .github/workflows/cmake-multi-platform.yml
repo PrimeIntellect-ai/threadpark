@@ -130,7 +130,14 @@ jobs:
 
           prepare: |
             export PKG_PATH="https://cdn.openbsd.org/pub/OpenBSD/7.6/packages/amd64/"
-
+            
+            echo "== Available cmake packages =="
+            pkg_info -Q cmake
+            echo "== Available ninja packages =="
+            pkg_info -Q ninja
+            echo "== Available llvm packages =="
+            pkg_info -Q llvm
+          
             pkg_add -I cmake ninja llvm
 
           run: |
