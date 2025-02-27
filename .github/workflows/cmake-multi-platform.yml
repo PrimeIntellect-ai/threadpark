@@ -125,15 +125,14 @@ jobs:
       - name: Build & Test on OpenBSD
         uses: vmactions/openbsd-vm@v1
         with:
-          # Choose whichever version you prefer: "7.6", "7.5", etc.
           release: "7.6"
           usesh: true
           prepare: |
-            # Update and install needed packages
-            # Note: for official pkg repo usage, you might need "export PKG_PATH=..." or an env var
+            export PKG_PATH="https://cdn.openbsd.org/pub/OpenBSD/7.6/packages/amd64/"
+
             pkg_add cmake ninja llvm
+
           run: |
-            # Make sure the newly installed LLVM is first in PATH
             export PATH="/usr/local/llvm/bin:$PATH"
             
             which clang-scan-deps || (echo "clang-scan-deps not found!" && exit 1)
