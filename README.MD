@@ -7,56 +7,25 @@ threadpark implements backends for Windows, macOS, Linux, and FreeBSD & OpenBSD.
 
 The following example showcases the threadpark api:
 
-```c
+```cpp
 #include <threadpark.h>
 
-#include <stdio.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <iostream>
+#include <thread>
 
-void* waker_thread(void* arg) {
-    tpark_handle_t* handle = (tpark_handle_t*)arg;
+int main() {
+    tpark_handle_t *handle = tparkCreateHandle();
 
-    // Sleep for 1 second
-    sleep(1);
+    std::thread waker([&] {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        tparkWake(handle);
+    });
 
-    // Wake the parked thread
-    tparkWake(handle);
-
-    return NULL;
-}
-
-int main(void) {
-    // Create the parking handle
-    tpark_handle_t* handle = tparkCreateHandle();
-    if (handle == NULL) {
-        fprintf(stderr, "Failed to create tpark handle\n");
-        return EXIT_FAILURE;
-    }
-
-    // Create the waker thread
-    pthread_t thread_id;
-    if (pthread_create(&thread_id, NULL, waker_thread, (void*)handle) != 0) {
-        fprintf(stderr, "Failed to create pthread\n");
-        tparkDestroyHandle(handle);
-        return EXIT_FAILURE;
-    }
-
-    // Park the main thread until waker thread calls tparkWake
     tparkPark(handle);
-
-    // Destroy the handle after unpark
     tparkDestroyHandle(handle);
+    waker.join();
 
-    printf("Thread parked and woken up\n");
-
-    // Join the waker thread to ensure it finishes
-    if (pthread_join(thread_id, NULL) != 0) {
-        fprintf(stderr, "Failed to join pthread\n");
-        return EXIT_FAILURE;
-    }
-
+    std::cout << "Thread parked and woken up" << std::endl;
     return 0;
 }
 ```
