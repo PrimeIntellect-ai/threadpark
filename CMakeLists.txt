@@ -45,4 +45,8 @@ if(THREADPARK_BACKEND STREQUAL "win32")
 endif()
 
 enable_testing()
-add_subdirectory(tests)
+
+option(THREAD_PARK_RUN_TESTS "Run tests" OFF)
+if (DEFINED $ENV{THREAD_PARK_RUN_TESTS})
+    add_subdirectory(tests)
+endif ()
