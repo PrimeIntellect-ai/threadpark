@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #ifdef _WIN32
-#ifndef THREAD_PARK_DYNAMIC_LINKING
+#ifdef THREAD_PARK_DYNAMIC_LINKING
   #ifdef THREAD_PARK_EXPORTS
     #define THREAD_PARK_EXPORT __declspec(dllexport)
   #else
