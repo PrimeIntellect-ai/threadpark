@@ -5,26 +5,57 @@ A C99-compatible library for efficiently parking and un-parking threads using fu
 ## Example usage
 
 The following example showcases the threadpark api:
-```cpp
+
+```c
 #include <threadpark.h>
 
-#include <iostream>
-#include <thread>
+#include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <stdlib.h>
 
-int main() {
-    tpark_handle_t *handle = tparkCreateHandle();
+void* waker_thread(void* arg) {
+    tpark_handle_t* handle = (tpark_handle_t*)arg;
 
-    std::thread waker([&] {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        tparkWake(handle);
-    });
-    tparkPark(handle); // wait until waker wakes us up
-    
+    // Sleep for 1 second
+    sleep(1);
+
+    // Wake the parked thread
+    tparkWake(handle);
+
+    return NULL;
+}
+
+int main(void) {
+    // Create the parking handle
+    tpark_handle_t* handle = tparkCreateHandle();
+    if (handle == NULL) {
+        fprintf(stderr, "Failed to create tpark handle\n");
+        return EXIT_FAILURE;
+    }
+
+    // Create the waker thread
+    pthread_t thread_id;
+    if (pthread_create(&thread_id, NULL, waker_thread, (void*)handle) != 0) {
+        fprintf(stderr, "Failed to create pthread\n");
+        tparkDestroyHandle(handle);
+        return EXIT_FAILURE;
+    }
+
+    // Park the main thread until waker thread calls tparkWake
+    tparkPark(handle);
+
+    // Destroy the handle after unpark
     tparkDestroyHandle(handle);
-    
-    // program will exit after one second
-    std::cout << "Thread parked and woken up" << std::endl;
-    waker.join();
+
+    printf("Thread parked and woken up\n");
+
+    // Join the waker thread to ensure it finishes
+    if (pthread_join(thread_id, NULL) != 0) {
+        fprintf(stderr, "Failed to join pthread\n");
+        return EXIT_FAILURE;
+    }
+
     return 0;
 }
 ```
