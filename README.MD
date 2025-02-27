@@ -5,7 +5,7 @@ threadpark implements backends for Windows, macOS, Linux, and FreeBSD & OpenBSD.
 
 ## Example usage
 
-The following example showcases the threadpark api:
+The following example showcases the threadpark API:
 
 ```cpp
 #include <threadpark.h>
@@ -43,9 +43,11 @@ Feel free to create issues for architecture-induced compilation failures.
 
 ## Building
 
+Below are platform-specific instructions for installing prerequisites and then building threadpark. If your system is not covered or you wish to see how we do it on multiple platforms, refer to our CI configuration.
+
 ### Installing prerequisites
 
-In this section we propose a method of installing the required prerequisites for building threadpark on Windows, macOS and Linux.
+In this section we propose methods of installing the required prerequisites for building threadpark on Windows, macOS, Linux, FreeBSD, and OpenBSD.
 
 #### Windows
 
@@ -59,7 +61,7 @@ winget install Kitware.CMake --source winget
 ```
 
 After installing these packages, make sure to refresh your PATH by restarting your explorer.exe in the Task Manager and
-opening a new Terminal launched by said explorer.
+opening a new Terminal, launched by said explorer.
 
 #### macOS
 
@@ -69,7 +71,7 @@ xcode-select --install # if not already installed
 # install Homebrew package manager if not already installed
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-brew install git # if not already installed by xcode command line tools
+brew install git        # if not already installed by xcode command line tools
 brew install cmake
 ```
 
@@ -82,16 +84,46 @@ sudo apt install -y git
 sudo apt install -y cmake
 ```
 
+#### FreeBSD
+
+```bash
+# Update pkg repository and install prerequisites
+sudo pkg update -f
+sudo pkg install -y cmake llvm16
+
+# Ensure the newer clang is first in your PATH
+export PATH="/usr/local/llvm16/bin:$PATH"
+```
+
+#### OpenBSD
+
+```bash
+# Set up appropriate PKG_PATH for your OpenBSD release (example shown for 7.6)
+export PKG_PATH="https://cdn.openbsd.org/pub/OpenBSD/7.6/packages/amd64/"
+
+# Install prerequisites (version numbers may differ)
+pkg_add -I cmake-3.30.1v1 llvm-16.0.6p30
+
+# Ensure the newer clang is first in your PATH
+export PATH="/usr/local/llvm/bin:$PATH"
+```
+
 ### Building the native library & other targets
 
-To build all native targets, run the following commands valid for both Windows with PowerShell and Unix-like systems
-starting from the root directory of the repository:
+To build all native targets, run the following commands valid for both Windows with PowerShell (replace backslashes if needed) and Unix-like systems (Linux, macOS, FreeBSD, OpenBSD), starting from the root directory of the repository:
 
 ```bash
 git submodule update --init --recursive
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release --parallel
+```
+
+If you have multiple C/C++ compilers installed (for instance, a newer LLVM) and wish to make sure CMake uses them, you can specify them explicitly:
+
+```bash
+cmake -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=c++ -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --config Release --parallel
 ```
 
@@ -106,7 +138,6 @@ Windows with PowerShell and Unix-like systems:
 cd build
 ctest --verbose --build-config Release --output-on-failure
 ```
-
 
 ## License
 
