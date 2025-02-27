@@ -18,13 +18,13 @@ int main() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         tparkWake(handle);
     });
-
-    tparkPark(handle);
+    tparkPark(handle); // wait until waker wakes us up
+    
     tparkDestroyHandle(handle);
-    waker.join();
-
+    
     // program will exit after one second
     std::cout << "Thread parked and woken up" << std::endl;
+    waker.join();
     return 0;
 }
 ```
