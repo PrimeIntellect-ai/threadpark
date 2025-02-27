@@ -11,11 +11,11 @@
  * We can declare them manually here if not included by default headers.
  */
 extern "C" {
-    int _thrsleep(const volatile void *identifier,
+    int __thrsleep(const volatile void *identifier,
                   clockid_t clock_id,
                   const struct timespec *timeout,
                   int flags);
-    int _thrwakeup(const volatile void *identifier,
+    int __thrwakeup(const volatile void *identifier,
                    int n);
 }
 
