@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # Normal multi-platform build
+  # Normal multi-platform build (Linux/Windows/macOS)
   build:
     runs-on: ${{ matrix.os }}
 
@@ -79,51 +79,36 @@ jobs:
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: ctest --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
 
-  # FreeBSD build using a VM on an Ubuntu runner
+  # FreeBSD build using vmactions/freebsd-vm@v1
   build-freebsd:
-    # Use Ubuntu because we'll spin up a FreeBSD VM on top of it
     runs-on: ubuntu-latest
-
     steps:
-      # Spin up a FreeBSD VM. Check the 'vmactions/freebsd-vm' repo for available FreeBSD versions.
-      - name: Set up FreeBSD VM
-        uses: vmactions/freebsd-vm@v1
-        with:
-          freebsd-version: '15.0'
-          # See the Action README for additional configuration options if needed
-
-      # Check out your repository on the Ubuntu host
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # Install build tools inside the FreeBSD VM.
-      - name: Install packages in FreeBSD VM
-        run: |
-          ssh -o StrictHostKeyChecking=no -p 22 freebsd@127.0.0.1 "sudo pkg update -f"
-          ssh -o StrictHostKeyChecking=no -p 22 freebsd@127.0.0.1 "sudo pkg install -y cmake ninja clang"
-          # Add any additional packages your project needs, e.g., 'git', 'openssl', etc.
+      - name: Build & Test on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          # Select whichever FreeBSD release you want (e.g. 13.4, 14.1, etc.)
+          release: "13.4"
 
-      # Copy code from the Ubuntu host into the FreeBSD VM
-      - name: Copy project to FreeBSD VM
-        run: |
-          scp -o StrictHostKeyChecking=no -P 22 -r . freebsd@127.0.0.1:/home/freebsd/project
+          # Run all scripts with /bin/sh inside the VM (rather than the default csh).
+          usesh: true
 
-      # Configure and build inside the VM
-      - name: Build in FreeBSD VM
-        run: |
-          ssh -o StrictHostKeyChecking=no -p 22 freebsd@127.0.0.1 << 'EOF'
-            cd ~/project
+          # Install required dependencies as root in the VM.
+          prepare: |
+            pkg update -f
+            pkg install -y cmake ninja clang
+
+          # Commands to build and test your project inside the VM.
+          run: |
             mkdir -p build
-            cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release .
+            cmake -B build -G Ninja \
+                  -DCMAKE_C_COMPILER=clang \
+                  -DCMAKE_CXX_COMPILER=clang++ \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  .
             cmake --build build
-          EOF
-
-      # Run tests inside the VM
-      - name: Test in FreeBSD VM
-        run: |
-          ssh -o StrictHostKeyChecking=no -p 22 freebsd@127.0.0.1 << 'EOF'
-            cd ~/project/build
+            cd build
             ctest --output-on-failure
-          EOF
