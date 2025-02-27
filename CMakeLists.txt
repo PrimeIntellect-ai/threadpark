@@ -1,0 +1,44 @@
+cmake_minimum_required(VERSION 3.30)
+project(threadpark)
+
+set(CMAKE_CXX_STANDARD 20)
+
+# chose threadpark backend depending on operating system
+set(THREADPARK_BACKEND generic)
+if (WIN32)
+    message(STATUS "Using Win32 threadpark backend")
+    set(THREADPARK_BACKEND win32)
+elseif (APPLE)
+    message(STATUS "Using Apple threadpark backend")
+    set(THREADPARK_BACKEND apple)
+elseif (LINUX)
+    message(STATUS "Using Linux threadpark backend")
+    set(THREADPARK_BACKEND linux)
+elseif (UNIX)
+    # various BSDs
+    message(STATUS "Using BSD threadpark backend")
+    set(THREADPARK_BACKEND bsd)
+else ()
+    message(STATUS "Using generic threadpark backend")
+    set(THREADPARK_BACKEND generic)
+endif ()
+
+set(THREADPARK_BACKEND generic)
+
+if (THREADPARK_BACKEND STREQUAL "generic")
+    set(THREADPARK_SOURCES generic/threadpark.cpp)
+elseif (THREADPARK_BACKEND STREQUAL "win32")
+    set(THREADPARK_SOURCES win32/threadpark.cpp)
+elseif (THREADPARK_BACKEND STREQUAL "apple")
+    set(THREADPARK_SOURCES apple/threadpark.cpp)
+elseif (THREADPARK_BACKEND STREQUAL "linux")
+    set(THREADPARK_SOURCES linux/threadpark.cpp)
+else ()
+    message(FATAL_ERROR "Unknown threadpark backend: ${THREADPARK_BACKEND}")
+endif ()
+
+add_library(threadpark STATIC ${THREADPARK_SOURCES})
+target_include_directories(threadpark PUBLIC include)
+
+enable_testing()
+add_subdirectory(tests)
