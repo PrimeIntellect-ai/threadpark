@@ -23,8 +23,6 @@ else ()
     set(THREADPARK_BACKEND generic)
 endif ()
 
-set(THREADPARK_BACKEND generic)
-
 if (THREADPARK_BACKEND STREQUAL "generic")
     set(THREADPARK_SOURCES generic/threadpark.cpp)
 elseif (THREADPARK_BACKEND STREQUAL "win32")
