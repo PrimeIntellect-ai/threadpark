@@ -1,38 +1,98 @@
 #include "threadpark.h"
 
-#include <mutex>
-#include <condition_variable>
+#include <iostream>
+#include <atomic>
+#include <cerrno>
 
-/// The handle structure keeps track of a condition variable, a mutex, and
-/// a flag indicating whether the thread is currently parked or not.
+#include <sys/umtx.h>
+#include <unistd.h>
+
 struct tpark_handle_t {
-    std::mutex m;
-    std::condition_variable cv;
-    bool parked = false;
+    /// The atomic state:
+    ///  - 1 => thread is parked / should block
+    ///  - 0 => thread is not parked / can proceed
+    std::atomic<int> state{0};
 };
 
-tpark_handle_t *tparkCreateHandle() {
+/**
+ * Thin wrappers around the _umtx_op() system call for clarity.
+ */
+static int umtx_wait(std::atomic<int>* addr, int expected)
+{
+    // _umtx_op(void *obj, int op, u_long val, void *uaddr, void *uaddr2)
+    // For UMTX_OP_WAIT_UINT:
+    //   obj   = address to wait on
+    //   op    = UMTX_OP_WAIT_UINT
+    //   val   = expected value
+    //   uaddr = timeout (optional, pass nullptr for infinite)
+    //   uaddr2= unused
+    return _umtx_op(reinterpret_cast<void*>(addr),
+                    UMTX_OP_WAIT_UINT,
+                    static_cast<unsigned long>(expected),
+                    nullptr,
+                    nullptr);
+}
+
+static int umtx_wake(std::atomic<int>* addr, int count)
+{
+    // For UMTX_OP_WAKE:
+    //   obj   = address to wake
+    //   op    = UMTX_OP_WAKE
+    //   val   = number of waiters to wake
+    //   uaddr/uaddr2 = unused
+    return _umtx_op(reinterpret_cast<void*>(addr),
+                    UMTX_OP_WAKE,
+                    static_cast<unsigned long>(count),
+                    nullptr,
+                    nullptr);
+}
+
+tpark_handle_t* tparkCreateHandle() {
     return new tpark_handle_t();
 }
 
-void tparkPark(tpark_handle_t *handle) {
-    if (!handle) return;
-    std::unique_lock lock(handle->m);
+void tparkPark(tpark_handle_t* handle) {
+    // Set state to 1 indicating we want to park
+    handle->state.store(1, std::memory_order_release);
 
-    handle->parked = true;
-    handle->cv.wait(lock, [handle]() {
-        return !handle->parked;
-    });
+    while (true) {
+        int val = handle->state.load(std::memory_order_acquire);
+        if (val != 1) {
+            // If it's not 1 anymore, we're done
+            return;
+        }
+
+        // Block if state is still 1
+        int rc = umtx_wait(&handle->state, 1);
+        if (rc == 0) {
+            // Successfully woken; likely state is now 0
+            return;
+        } else {
+            // Error or spurious wake up => check errno
+            if (errno == EINTR) {
+                // Interrupted by a signal, retry
+                continue;
+            } else if (errno == EWOULDBLOCK) {
+                // The state changed before we called WAIT,
+                // or changed while we were about to block. Just exit.
+                return;
+            } else {
+                std::cerr << "Unexpected error in tparkPark: " << std::strerror(errno) << std::endl;
+                std::abort();
+            }
+        }
+    }
 }
 
-void tparkWake(tpark_handle_t *handle) {
-    if (!handle) return;
-    std::lock_guard lock(handle->m);
+void tparkWake(tpark_handle_t* handle) {
+    // Set state to 0 => unpark
+    handle->state.store(0, std::memory_order_release);
 
-    handle->parked = false;
-    handle->cv.notify_one();
+    // Wake up to 1 thread waiting on address
+    // (could be >1 if multiple waiters, but typically 1 is enough)
+    umtx_wake(&handle->state, 1);
 }
 
-void tparkDestroyHandle(const tpark_handle_t *handle) {
+void tparkDestroyHandle(const tpark_handle_t* handle) {
     delete handle;
 }
