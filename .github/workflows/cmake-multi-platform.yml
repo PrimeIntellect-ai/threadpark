@@ -90,23 +90,18 @@ jobs:
       - name: Build & Test on FreeBSD
         uses: vmactions/freebsd-vm@v1
         with:
-          # Select whichever FreeBSD release you want (e.g. 13.4, 14.1, etc.)
           release: "13.4"
-
-          # Run all scripts with /bin/sh inside the VM (rather than the default csh).
           usesh: true
 
-          # Install required dependencies as root in the VM.
           prepare: |
             pkg update -f
-            pkg install -y cmake ninja clang
+            pkg install -y cmake ninja
 
-          # Commands to build and test your project inside the VM.
           run: |
             mkdir -p build
             cmake -B build -G Ninja \
-                  -DCMAKE_C_COMPILER=clang \
-                  -DCMAKE_CXX_COMPILER=clang++ \
+                  -DCMAKE_C_COMPILER=cc \
+                  -DCMAKE_CXX_COMPILER=c++ \
                   -DCMAKE_BUILD_TYPE=Release \
                   .
             cmake --build build
