@@ -47,6 +47,6 @@ endif()
 enable_testing()
 
 option(THREAD_PARK_RUN_TESTS "Run tests" OFF)
-if (DEFINED $ENV{THREAD_PARK_RUN_TESTS})
+if (THREAD_PARK_RUN_TESTS)
     add_subdirectory(tests)
 endif ()
