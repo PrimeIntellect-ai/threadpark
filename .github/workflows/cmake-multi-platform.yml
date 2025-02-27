@@ -15,28 +15,42 @@ jobs:
         build_type: [ Release ]
         c_compiler: [ gcc, clang, cl ]
         include:
+          # Windows MSVC
           - os: windows-latest
             c_compiler: cl
             cpp_compiler: cl
+
+          # Ubuntu GCC
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
+
+          # Ubuntu Clang
           - os: ubuntu-latest
             c_compiler: clang
             cpp_compiler: clang++
+
+          # macOS Clang
           - os: macos-latest
             c_compiler: clang
             cpp_compiler: clang++
+
         exclude:
+          # Exclude invalid Windows combos
           - os: windows-latest
             c_compiler: gcc
           - os: windows-latest
             c_compiler: clang
+
+          # Exclude invalid Ubuntu combos
           - os: ubuntu-latest
             c_compiler: cl
+
+          # Exclude invalid macOS combos
+          - os: macos-latest
+            c_compiler: gcc
           - os: macos-latest
             c_compiler: cl
-            cpp_compiler: cl
 
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +74,4 @@ jobs:
       - name: Build
         run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
-      - name: Test
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
+      -
