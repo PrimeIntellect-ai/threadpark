@@ -87,7 +87,7 @@ jobs:
     steps:
       # Spin up a FreeBSD VM. Check the 'vmactions/freebsd-vm' repo for available FreeBSD versions.
       - name: Set up FreeBSD VM
-        uses: vmactions/freebsd-vm@v0.2
+        uses: vmactions/freebsd-vm@v1
         with:
           freebsd-version: '15.0'
           # See the Action README for additional configuration options if needed
