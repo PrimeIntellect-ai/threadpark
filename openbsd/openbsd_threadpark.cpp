@@ -1,87 +1,84 @@
 #include "threadpark.h"
 
+#include <iostream>
 #include <atomic>
 #include <cerrno>
-#include <iostream>
+#include <cstdint>
 
-#include <sys/types.h>
-#include <time.h>
+#include <sys/futex.h>     // for FUTEX_WAIT, FUTEX_WAKE
+#include <sys/time.h>      // for struct timespec if needed
 #include <unistd.h>
 
-/*
- * Declarations for the private __thrsleep and __thrwakeup APIs.
- * In some OpenBSD versions they may not be exported, or may require
- * special flags. See also thr(2).
- */
-extern "C" {
-    int __thrsleep(const volatile void *chan,
-                   clockid_t clock_id,
-                   const struct timespec *timeout,
-                   int flags);
-
-    int __thrwakeup(const volatile void *chan,
-                    int n);
-}
-
-struct alignas(4) tpark_handle_t {
-    // 1 => "parked (should block)"
-    // 0 => "not parked"
-    // We force alignment to 4 bytes (alignas(4)) in case the system
-    // demands it for __thrsleep to work properly.
-    std::atomic<int> state{0};
+struct tpark_handle_t {
+    // 0 => not parked
+    // 1 => parked
+    std::atomic<uint32_t> state{0};
 };
 
-tpark_handle_t* tparkCreateHandle() {
+tpark_handle_t *tparkCreateHandle() {
     return new tpark_handle_t();
 }
 
-void tparkPark(tpark_handle_t* handle) {
+void tparkPark(tpark_handle_t *handle) {
     // Indicate we want to park
     handle->state.store(1, std::memory_order_release);
 
     while (true) {
-        // Check if still 1 (meaning we really do want to block)
-        int val = handle->state.load(std::memory_order_acquire);
+        // Check if state is still 1; if not, we can stop
+        uint32_t val = handle->state.load(std::memory_order_acquire);
         if (val != 1) {
-            // Another thread changed it => unparked
+            // The state changed (someone did Wake), so we're no longer parked
             return;
         }
 
-        // __thrsleep: indefinite wait until __thrwakeup or a signal
-        //
-        // - chan     = &handle->state
-        // - clock_id = -1      (means "no timeout")
-        // - timeout  = nullptr (since we have no timeout)
-        // - flags    = 0
-        //
-        // Returns 0 if woken up via __thrwakeup,
-        // or -1 on error (errno set).
-        int rc = __thrsleep(&handle->state, clockid_t(-1), nullptr, 0);
+        /*
+         * futex(volatile uint32_t *uaddr, int op, int val,
+         *       const struct timespec *timeout, volatile uint32_t *uaddr2);
+         *
+         * If *uaddr is still == 'val', the caller blocks. If something else changed
+         * it, futex() returns with EAGAIN (errno).
+         */
+        int rc = futex(&handle->state,
+                       FUTEX_WAIT,
+                       1,          // val: we wait if *uaddr == 1
+                       nullptr,    // no timeout
+                       nullptr);   // uaddr2 not used for FUTEX_WAIT
         if (rc == 0) {
-            // Woken by __thrwakeup
+            // We were woken up by a matching FUTEX_WAKE call
             return;
         } else {
-            // rc < 0 => check errno
-            if (errno == EINTR) {
-                // Interrupted by a signal => try again
+            // rc == -1 => check errno
+            if (errno == EAGAIN) {
+                // *uaddr != val at call time => no need to block, so just return
+                return;
+            } else if (errno == EINTR) {
+                // Interrupted by a signal => loop again
                 continue;
+            } else {
+                // Some other error
+                std::cerr << "Unexpected error in tparkPark: " << std::strerror(errno) << std::endl;
+                std::abort();
             }
-            // EINVAL, EFAULT, EBUSY, etc. => just stop
-            std::cerr << "Unexpected error in tparkPark: " << std::strerror(errno) << std::endl;
-            std::abort();
         }
     }
 }
 
-void tparkWake(tpark_handle_t* handle) {
-    // Unpark
+void tparkWake(tpark_handle_t *handle) {
+    // Set state to 0 => unpark
     handle->state.store(0, std::memory_order_release);
 
-    // __thrwakeup: wake up to `n` threads sleeping on &handle->state
-    // Typically, n=1 is enough if you only expect one waiter
-    __thrwakeup(&handle->state, 1);
+    /*
+     * FUTEX_WAKE unblocks up to 'val' threads sleeping on &handle->state.
+     * In typical usage, 1 is enough.  If you expect multiple waiters, pass a larger
+     * number (e.g. INT_MAX) to wake them all.
+     */
+    futex(&handle->state,
+          FUTEX_WAKE,
+          1,          // wake up to 1 waiter
+          nullptr,
+          nullptr);
 }
 
-void tparkDestroyHandle(const tpark_handle_t* handle) {
+void tparkDestroyHandle(const tpark_handle_t *handle) {
     delete handle;
 }
