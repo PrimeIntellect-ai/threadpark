@@ -1,12 +1,14 @@
 #include "threadpark.h"
 
 #include <windows.h>
+#include <synchapi.h>
 #include <atomic>
+#include <iostream>
 
 struct tpark_handle_t {
-    // The atomic state for parking:
-    //  - 1 indicates "parked"
-    //  - 0 indicates "not parked"
+    /// The atomic state for parking:
+    ///  - 1 indicates "parked"
+    ///  - 0 indicates "not parked"
     std::atomic<ULONG> state{0};
 };
 
@@ -22,7 +24,7 @@ void tparkPark(tpark_handle_t *handle) {
     // If the call fails or returns (e.g. spurious wake), we re-check the state.
     ULONG expected = 1;
     while (handle->state.load(std::memory_order_acquire) == expected) {
-        BOOL success = WaitOnAddress(
+        const BOOL success = WaitOnAddress(
             /* Address        = */ &handle->state,
             /* CompareAddress = */ &expected,
             /* AddressSize    = */ sizeof(expected),
@@ -32,10 +34,10 @@ void tparkPark(tpark_handle_t *handle) {
             // WaitOnAddress can fail due to various reasons (e.g. spurious wake).
             // Commonly you’d check GetLastError() for debugging or handle signals, etc.
             // We’ll just loop again unless the state changed.
-            DWORD error = GetLastError();
-            if (error == ERROR_TIMEOUT) {
-                // If you provided a non-INFINITE timeout, you might handle a timeout here.
+            if (const DWORD error = GetLastError(); error == ERROR_TIMEOUT) {
                 // For INFINITE, this shouldn't normally happen unless forcibly canceled.
+                std::cerr << "WaitOnAddress failed with ERROR_TIMEOUT" << std::endl;
+                std::abort();
             }
         }
     }
