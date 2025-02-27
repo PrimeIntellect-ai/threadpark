@@ -95,12 +95,15 @@ jobs:
 
           prepare: |
             pkg update -f
-            pkg install -y cmake ninja
+            pkg install -y cmake ninja llvm16
 
           run: |
+            export PATH="/usr/local/llvm16/bin:$PATH"
+            
+            which clang-scan-deps || (echo "clang-scan-deps not found!" && exit 1)
+            
             mkdir -p build
             cmake -B build -G Ninja \
-                  -DCMAKE_POLICY_DEFAULT_CMP0135=OLD \
                   -DCMAKE_C_COMPILER=cc \
                   -DCMAKE_CXX_COMPILER=c++ \
                   -DCMAKE_BUILD_TYPE=Release \
