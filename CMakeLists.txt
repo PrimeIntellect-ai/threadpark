@@ -39,6 +39,10 @@ add_library(threadpark STATIC ${THREADPARK_SOURCES})
 target_include_directories(threadpark PUBLIC include)
 
 if(THREADPARK_BACKEND STREQUAL "win32")
+    target_compile_definitions(threadpark PUBLIC
+            _WIN32_WINNT=0x0602
+            WINVER=0x0602
+    )
     target_link_libraries(threadpark PUBLIC kernel32.lib)
 endif()
 
