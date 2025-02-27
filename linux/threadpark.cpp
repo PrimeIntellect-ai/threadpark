@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cerrno>
+#include <cstring>
 #include <iostream>
 
 #include <linux/futex.h>
