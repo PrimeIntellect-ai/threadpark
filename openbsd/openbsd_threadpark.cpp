@@ -45,7 +45,7 @@ void tparkPark(tpark_handle_t* handle) {
         // _thrsleep():
         //   Blocks the calling thread on the given 'identifier' pointer.
         //   It returns 0 if woken by _thrwakeup, or -1 if interrupted or error.
-        int rc = _thrsleep(/* identifier */ &handle->state,
+        int rc = __thrsleep(/* identifier */ &handle->state,
                            /* clock_id   */ CLOCK_REALTIME,
                            /* timeout    */ nullptr,
                            /* flags      */ 0);
@@ -72,7 +72,7 @@ void tparkWake(tpark_handle_t* handle) {
     handle->state.store(0, std::memory_order_release);
 
     // Wake up to 1 thread sleeping on &handle->state
-    _thrwakeup(&handle->state, 1);
+    __thrwakeup(&handle->state, 1);
 }
 
 void tparkDestroyHandle(const tpark_handle_t* handle) {
