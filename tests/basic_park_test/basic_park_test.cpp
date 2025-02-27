@@ -10,7 +10,15 @@ int main() {
         tparkWake(handle);
     });
 
+    const auto start = std::chrono::high_resolution_clock::now();
     tparkPark(handle);
+    const auto end = std::chrono::high_resolution_clock::now();
+
+    if (const std::chrono::duration<double> elapsed = end - start; elapsed.count() < 1) {
+        std::cerr << "Thread woke up too early" << std::endl;
+        std::abort();
+    }
+
     tparkDestroyHandle(handle);
     waker.join();
 
