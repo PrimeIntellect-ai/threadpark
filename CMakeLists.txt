@@ -39,7 +39,7 @@ add_library(threadpark STATIC ${THREADPARK_SOURCES})
 target_include_directories(threadpark PUBLIC include)
 
 if(THREADPARK_BACKEND STREQUAL "win32")
-    target_link_libraries(threadpark PRIVATE kernel32)
+    target_link_libraries(threadpark PRIVATE kernel32.lib)
 endif()
 
 enable_testing()
