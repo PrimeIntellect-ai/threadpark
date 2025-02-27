@@ -1,28 +1,33 @@
 #include "threadpark.h"
+
 #include <atomic>
 #include <cerrno>
+#include <iostream>
+
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
-/**
- * _thrsleep(2) and _thrwakeup(2) are declared in sys/syscall.h or sys/thr.h,
- * but in many OpenBSD versions they are only documented (sparingly) in thr(2).
- * We can declare them manually here if not included by default headers.
+/*
+ * Declarations for the private __thrsleep and __thrwakeup APIs.
+ * In some OpenBSD versions they may not be exported, or may require
+ * special flags. See also thr(2).
  */
 extern "C" {
-    int __thrsleep(const volatile void *identifier,
-                  clockid_t clock_id,
-                  const struct timespec *timeout,
-                  int flags);
-    int __thrwakeup(const volatile void *identifier,
-                   int n);
+    int __thrsleep(const volatile void *chan,
+                   clockid_t clock_id,
+                   const struct timespec *timeout,
+                   int flags);
+
+    int __thrwakeup(const volatile void *chan,
+                    int n);
 }
 
-struct tpark_handle_t {
-    // Same idea:
-    //   1 => "parked" (thread should block)
-    //   0 => "not parked" (thread can proceed)
+struct alignas(4) tpark_handle_t {
+    // 1 => "parked (should block)"
+    // 0 => "not parked"
+    // We force alignment to 4 bytes (alignas(4)) in case the system
+    // demands it for __thrsleep to work properly.
     std::atomic<int> state{0};
 };
 
@@ -35,43 +40,45 @@ void tparkPark(tpark_handle_t* handle) {
     handle->state.store(1, std::memory_order_release);
 
     while (true) {
-        // Check if we still need to park
+        // Check if still 1 (meaning we really do want to block)
         int val = handle->state.load(std::memory_order_acquire);
         if (val != 1) {
-            // The state changed (e.g., someone called tparkWake), so stop parking.
+            // Another thread changed it => unparked
             return;
         }
 
-        // _thrsleep():
-        //   Blocks the calling thread on the given 'identifier' pointer.
-        //   It returns 0 if woken by _thrwakeup, or -1 if interrupted or error.
-        int rc = __thrsleep(/* identifier */ &handle->state,
-                           /* clock_id   */ CLOCK_REALTIME,
-                           /* timeout    */ nullptr,
-                           /* flags      */ 0);
-
+        // __thrsleep: indefinite wait until __thrwakeup or a signal
+        //
+        // - chan     = &handle->state
+        // - clock_id = -1      (means "no timeout")
+        // - timeout  = nullptr (since we have no timeout)
+        // - flags    = 0
+        //
+        // Returns 0 if woken up via __thrwakeup,
+        // or -1 on error (errno set).
+        int rc = __thrsleep(&handle->state, clockid_t(-1), nullptr, 0);
         if (rc == 0) {
-            // We were woken up by _thrwakeup
-            // or the state changed after we started sleeping.
+            // Woken by __thrwakeup
             return;
         } else {
             // rc < 0 => check errno
             if (errno == EINTR) {
-                // Interrupted by a signal; retry
+                // Interrupted by a signal => try again
                 continue;
             }
-            // If there's another error (e.g. EFAULT, EBUSY),
-            // we just break out or return directly.
-            return;
+            // EINVAL, EFAULT, EBUSY, etc. => just stop
+            std::cerr << "Unexpected error in tparkPark: " << std::strerror(errno) << std::endl;
+            std::abort();
         }
     }
 }
 
 void tparkWake(tpark_handle_t* handle) {
-    // Indicate we are unparking the thread
+    // Unpark
     handle->state.store(0, std::memory_order_release);
 
-    // Wake up to 1 thread sleeping on &handle->state
+    // __thrwakeup: wake up to `n` threads sleeping on &handle->state
+    // Typically, n=1 is enough if you only expect one waiter
     __thrwakeup(&handle->state, 1);
 }
 
