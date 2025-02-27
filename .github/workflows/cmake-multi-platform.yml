@@ -127,10 +127,11 @@ jobs:
         with:
           release: "7.6"
           usesh: true
+
           prepare: |
             export PKG_PATH="https://cdn.openbsd.org/pub/OpenBSD/7.6/packages/amd64/"
 
-            pkg_add cmake ninja llvm
+            pkg_add -I cmake ninja llvm
 
           run: |
             export PATH="/usr/local/llvm/bin:$PATH"
