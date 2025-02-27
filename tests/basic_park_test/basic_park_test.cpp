@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <threadpark.h>
+#include <chrono>
 
 int main() {
     tpark_handle_t *handle = tparkCreateHandle();
