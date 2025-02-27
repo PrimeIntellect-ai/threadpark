@@ -1,6 +1,7 @@
 # threadpark
 
 A C99-compatible library for efficiently parking and un-parking threads using futex-like APIs on all major platforms.
+threadpark implements backends for Windows, macOS, Linux, and FreeBSD & OpenBSD.
 
 ## Example usage
 

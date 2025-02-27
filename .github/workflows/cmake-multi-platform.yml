@@ -100,6 +100,7 @@ jobs:
           run: |
             mkdir -p build
             cmake -B build -G Ninja \
+                  -DCMAKE_POLICY_DEFAULT_CMP0135=OLD \
                   -DCMAKE_C_COMPILER=cc \
                   -DCMAKE_CXX_COMPILER=c++ \
                   -DCMAKE_BUILD_TYPE=Release \
