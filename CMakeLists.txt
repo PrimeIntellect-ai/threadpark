@@ -38,5 +38,9 @@ endif ()
 add_library(threadpark STATIC ${THREADPARK_SOURCES})
 target_include_directories(threadpark PUBLIC include)
 
+if(THREADPARK_BACKEND STREQUAL "win32")
+    target_link_libraries(threadpark PRIVATE kernel32)
+endif()
+
 enable_testing()
 add_subdirectory(tests)
