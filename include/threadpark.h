@@ -43,6 +43,7 @@ THREAD_PARK_EXPORT tpark_handle_t *tparkCreateHandle(void);
  *
  * This function will cause the calling thread to wait until another
  * thread wakes it via @ref tparkWake.
+ * Only one thread can be parked on one handle at a time.
  *
  * @param handle Pointer to the thread parking handle.
  *               Must have been created by @ref tparkCreateHandle.
