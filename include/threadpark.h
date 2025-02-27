@@ -5,6 +5,16 @@
 extern "C" {
 #endif
 
+#ifdef _WIN32
+  #ifdef THREAD_PARK_EXPORTS
+    #define THREAD_PARK_EXPORT __declspec(dllexport)
+  #else
+    #define THREAD_PARK_EXPORT __declspec(dllimport)
+  #endif
+#else
+  #define THREAD_PARK_EXPORT __attribute__((visibility("default"))) __attribute__((used))
+#endif
+
 /**
  * @brief Opaque structure representing a thread parking handle.
  *
@@ -13,15 +23,6 @@ extern "C" {
  * via the functions provided.
  */
 typedef struct tpark_handle_t tpark_handle_t;
-
-/**
- * @def THREAD_PARK_EXPORT
- * @brief Export macro for symbols.
- *
- * Marks symbols as visible and used for shared library usage on
- * compilers that support GCC-style attributes.
- */
-#define THREAD_PARK_EXPORT __attribute__((visibility("default"))) __attribute__((used))
 
 /**
  * @brief Create a new thread parking handle.
