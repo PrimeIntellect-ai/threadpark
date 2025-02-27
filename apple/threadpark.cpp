@@ -2,6 +2,8 @@
 
 #include <mutex>
 #include <condition_variable>
+#include <iostream>
+
 #include "ulock.h"
 
 struct tpark_handle_t {
@@ -24,9 +26,9 @@ void tparkPark(tpark_handle_t *handle) {
     // blocks until 'state' != expected_val (or an error/spurious wake occurs).
     while (true) {
         const int rc = __ulock_wait(UL_COMPARE_AND_WAIT,
-                              &handle->state,
-                              1,  // compare value
-                              0   // no timeout (wait indefinitely)
+                                    &handle->state,
+                                    1, // compare value
+                                    0 // no timeout (wait indefinitely)
         );
         if (rc == 0) {
             // Successfully woken (state changed from 1)
@@ -37,14 +39,14 @@ void tparkPark(tpark_handle_t *handle) {
             if (errno == EINTR) {
                 // Interrupted by a signal; retry
                 continue;
-            }
-            if (errno == EBUSY) {
+            } else if (errno == EBUSY) {
                 // The state wasn't 1 by the time we called __ulock_wait,
                 // so we aren't actually blocked. Just return.
                 return;
+            } else {
+                std::cerr << "Unexpected error in tparkPark: " << std::strerror(errno) << std::endl;
+                std::abort();
             }
-            // Some other error; break or handle as needed
-            return;
         }
     }
 }

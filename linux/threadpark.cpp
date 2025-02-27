@@ -2,6 +2,8 @@
 
 #include <atomic>
 #include <cerrno>
+#include <iostream>
+
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -63,8 +65,8 @@ void tparkPark(tpark_handle_t *handle) {
                 // Interrupted by a signal; retry
                 continue;
             } else {
-                // Some other error; bail out
-                return;
+                std::cerr << "Unexpected error in tparkPark: " << std::strerror(errno) << std::endl;
+                std::abort();
             }
         }
     }

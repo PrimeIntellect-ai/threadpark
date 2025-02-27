@@ -1,9 +1,10 @@
 #include "threadpark.h"
 
-#include <windows.h>
-#include <synchapi.h>
 #include <atomic>
 #include <iostream>
+
+#include <windows.h>
+#include <synchapi.h>
 
 struct tpark_handle_t {
     /// The atomic state for parking:
