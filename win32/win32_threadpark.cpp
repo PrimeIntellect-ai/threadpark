@@ -17,7 +17,7 @@ tpark_handle_t *tparkCreateHandle() {
     return new tpark_handle_t();
 }
 
-void tparkWait(tpark_handle_t *handle, const _Bool unlocked) {
+void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     if (!unlocked) {
         // Indicate we want to park
         handle->state.store(1, std::memory_order_release);

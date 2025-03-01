@@ -3,8 +3,6 @@
 
 #ifndef __cplusplus
 #include <stdbool.h>
-#else
-#include <cstdbool>
 #endif
 
 #ifdef __cplusplus
@@ -90,7 +88,7 @@ THREAD_PARK_EXPORT void tparkBeginPark(tpark_handle_t *handle);
  *                   - false => This call sets the bit itself, then blocks.
  *                   - true  => The bit is assumed to be set already; just block if still needed.
  */
-THREAD_PARK_EXPORT void tparkWait(tpark_handle_t *handle, _Bool unlocked);
+THREAD_PARK_EXPORT void tparkWait(tpark_handle_t *handle, bool unlocked);
 
 /**
  * @brief Conclude or "undo" the parking state (final phase).
