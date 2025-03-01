@@ -43,9 +43,10 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
                 // Interrupted by a signal; retry
                 continue;
             } else if (errno == EBUSY) {
-                // The state wasn't 1 by the time we called __ulock_wait,
-                // so we aren't actually blocked. Just return.
-                return;
+                // check for spurious wakeups
+                if (handle->state.load(std::memory_order_acquire) != 1) {
+                    return;
+                }
             } else {
                 std::cerr << "Unexpected error in tparkPark: " << std::strerror(errno) << std::endl;
                 std::abort();
