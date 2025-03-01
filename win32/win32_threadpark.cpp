@@ -17,9 +17,11 @@ tpark_handle_t *tparkCreateHandle() {
     return new tpark_handle_t();
 }
 
-void tparkPark(tpark_handle_t *handle) {
-    // Set the state to 1 to indicate we want to park
-    handle->state.store(1, std::memory_order_release);
+void tparkWait(tpark_handle_t *handle, const _Bool unlocked) {
+    if (!unlocked) {
+        // Indicate we want to park
+        handle->state.store(1, std::memory_order_release);
+    }
 
     // Wait until 'state' changes from 1 to something else.
     // If the call fails or returns (e.g. spurious wake), we re-check the state.
@@ -44,7 +46,16 @@ void tparkPark(tpark_handle_t *handle) {
     }
 }
 
+void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_release); }
+
+void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_release); }
+
 void tparkWake(tpark_handle_t *handle) {
+    if (handle->state.load(std::memory_order_acquire) == 0) {
+        // No need to wake up, the thread is not parked
+        return;
+    }
+
     // Set the state to 0, signaling that any parked thread should wake.
     handle->state.store(0, std::memory_order_release);
 

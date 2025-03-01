@@ -1,0 +1,7 @@
+find_package(Threads REQUIRED)
+
+add_executable(park_section_no_miss park_section_no_miss.cpp)
+target_link_libraries(park_section_no_miss PRIVATE threadpark)
+target_link_libraries(park_section_no_miss PRIVATE Threads::Threads)
+
+add_test(NAME park_section_no_miss COMMAND park_section_no_miss)

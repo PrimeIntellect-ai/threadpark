@@ -12,7 +12,7 @@ int main() {
     });
 
     const auto start = std::chrono::high_resolution_clock::now();
-    tparkPark(handle);
+    tparkWait(handle, false);
     const auto end = std::chrono::high_resolution_clock::now();
 
     if (const std::chrono::duration<double> elapsed = end - start; elapsed.count() < 1) {

@@ -21,7 +21,39 @@ int main() {
         tparkWake(handle);
     });
 
-    tparkPark(handle);
+    tparkWait(handle, false);
+    tparkDestroyHandle(handle);
+    waker.join();
+
+    std::cout << "Thread parked and woken up" << std::endl;
+    return 0;
+}
+```
+
+```cpp
+#include <threadpark.h>
+
+#include <iostream>
+#include <thread>
+
+int main() {
+    tpark_handle_t *handle = tparkCreateHandle();
+
+    std::thread waker([&] {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        tparkWake(handle);
+    });
+     
+    tparkBeginPark(handle);
+    
+    // do other stuff here.
+    // Even if tparkWake is called before tparkWait, the thread will not "miss" the wake-up.
+    // tparkWait will return immediately if the thread was woken up during the section from tparkBeginPark to tparkWait.
+    
+    tparkWait(handle, true);
+    
+    tparkEndPark(handle);
+    
     tparkDestroyHandle(handle);
     waker.join();
 
