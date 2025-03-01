@@ -8,7 +8,7 @@
 
 static constexpr int NUM_ITERATIONS = 100;
 
-static constexpr auto MAX_WAIT_MS = 500; // 0.5 seconds
+static constexpr auto MAX_WAIT_MS = 500;
 
 int main() {
     tpark_handle_t *handle = tparkCreateHandle();
@@ -19,7 +19,7 @@ int main() {
         for (int i = 0; i < NUM_ITERATIONS && !stop.load(); i++) {
             // Sleep a *tiny* bit so consumer definitely has set "state=1"
             // but maybe hasn't called tparkParkWait yet.
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
             // Attempt to wake — if consumer hasn't actually parked yet,
             // we want to verify we do *not* lose this wake.
@@ -36,7 +36,7 @@ int main() {
 
         // 2) Simulate some short pause before actually calling parkWait
         //    The producer may call tparkWake() in this window.
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
         // 3) Actually park. But if the wake arrived "too early",
         //    the state is already zero and we won't block.
