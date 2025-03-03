@@ -20,7 +20,7 @@ tpark_handle_t *tparkCreateHandle() {
 void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     if (!unlocked) {
         // Set the state to 1 to indicate we want to park
-        handle->state.store(1, std::memory_order_release);
+        handle->state.store(1, std::memory_order_seq_cst);
     }
     // Repeatedly call __ulock_wait in case of spurious wakes or signals.
     // __ulock_wait(UL_COMPARE_AND_WAIT, &addr, expected_val, timeout)
@@ -33,7 +33,7 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
         );
         if (rc == 0) {
             // check for spurious wakeups
-            if (handle->state.load(std::memory_order_acquire) != 1) {
+            if (handle->state.load(std::memory_order_seq_cst) != 1) {
                 return;
             }
         }
@@ -44,7 +44,7 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
                 continue;
             } else if (errno == EBUSY) {
                 // check for spurious wakeups
-                if (handle->state.load(std::memory_order_acquire) != 1) {
+                if (handle->state.load(std::memory_order_seq_cst) != 1) {
                     return;
                 }
             } else {
@@ -55,17 +55,17 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     }
 }
 
-void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_release); }
+void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_seq_cst); }
 
-void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_release); }
+void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_seq_cst); }
 
 void tparkWake(tpark_handle_t *handle) {
-    if (handle->state.load(std::memory_order_acquire) == 0) {
+    if (handle->state.load(std::memory_order_seq_cst) == 0) {
         // No need to wake up, the thread is not parked
         return;
     }
     // Set the state to 0 to indicate "not parked"
-    handle->state.store(0, std::memory_order_release);
+    handle->state.store(0, std::memory_order_seq_cst);
 
     // Wake any threads waiting for the value '1'
     // (i.e., threads that called __ulock_wait(..., 1, ...)).

@@ -53,13 +53,14 @@ tpark_handle_t* tparkCreateHandle() {
 
 void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     if (!unlocked) {
-        // Indicate we want to park
-        handle->state.store(1, std::memory_order_release);
+        // Set the state to 1 to indicate we want to park
+        handle->state.store(1, std::memory_order_seq_cst);
     }
+
     while (true) {
-        int val = handle->state.load(std::memory_order_acquire);
-        if (val != 1) {
-            // If it's not 1 anymore, we're done
+        // Double-check the state before actually blocking
+        if (handle->state.load(std::memory_order_seq_cst) != 1) {
+            // If it's not 1 anymore, we're done (another thread likely called wake).
             return;
         }
 
@@ -67,7 +68,7 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
         int rc = umtx_wait(&handle->state, 1);
         if (rc == 0) {
             // check for spurious wakeups
-            if (handle->state.load(std::memory_order_acquire) != 1) {
+            if (handle->state.load(std::memory_order_seq_cst) != 1) {
                 return;
             }
         } else {
@@ -87,17 +88,17 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     }
 }
 
-void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_release); }
+void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_seq_cst); }
 
-void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_release); }
+void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_seq_cst); }
 
 void tparkWake(tpark_handle_t *handle) {
-    if (handle->state.load(std::memory_order_acquire) == 0) {
+    if (handle->state.load(std::memory_order_seq_cst) == 0) {
         // No need to wake up, the thread is not parked
         return;
     }
     // Set state to 0 => unpark
-    handle->state.store(0, std::memory_order_release);
+    handle->state.store(0, std::memory_order_seq_cst);
 
     // Wake up to 1 thread waiting on address
     // (could be >1 if multiple waiters, but typically 1 is enough)

@@ -21,15 +21,15 @@ tpark_handle_t* tparkCreateHandle() {
 
 void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     if (!unlocked) {
-        // Indicate we want to park
-        handle->state.store(1, std::memory_order_release);
+        // Set the state to 1 to indicate we want to park
+        handle->state.store(1, std::memory_order_seq_cst);
     }
 
+
     while (true) {
-        // Check if state is still 1
-        uint32_t val = handle->state.load(std::memory_order_acquire);
-        if (val != 1) {
-            // State changed => exit
+        // Double-check the state before actually blocking
+        if (handle->state.load(std::memory_order_seq_cst) != 1) {
+            // If it's not 1 anymore, we're done (another thread likely called wake).
             return;
         }
 
@@ -49,7 +49,7 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
             // rc == -1 => check errno
             if (errno == EAGAIN) {
                 // check for spurious wakeups
-                if (handle->state.load(std::memory_order_acquire) != 1) {
+                if (handle->state.load(std::memory_order_seq_cst) != 1) {
                     return;
                 }
             } else if (errno == EINTR) {
@@ -63,9 +63,9 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     }
 }
 
-void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_release); }
+void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_seq_cst); }
 
-void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_release); }
+void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_seq_cst); }
 
 void tparkWake(tpark_handle_t* handle) {
     if (handle->state.load(std::memory_order_acquire) == 0) {
@@ -74,7 +74,7 @@ void tparkWake(tpark_handle_t* handle) {
     }
 
     // Unpark
-    handle->state.store(0, std::memory_order_release);
+    handle->state.store(0, std::memory_order_seq_cst);
 
     // The futex call wants (volatile uint32_t *).
     volatile uint32_t *addr = reinterpret_cast<volatile uint32_t*>(&handle->state);

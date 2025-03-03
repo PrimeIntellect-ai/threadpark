@@ -35,11 +35,11 @@ tpark_handle_t *tparkCreateHandle() { return new tpark_handle_t(); }
 void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     if (!unlocked) {
         // Indicate we want to park
-        handle->state.store(1, std::memory_order_release);
+        handle->state.store(1, std::memory_order_seq_cst);
     }
     while (true) {
         // Double-check the state before actually blocking
-        if (const int val = handle->state.load(std::memory_order_acquire); val != 1) {
+        if (handle->state.load(std::memory_order_seq_cst) != 1) {
             // If it's not 1 anymore, we're done (another thread likely called wake).
             return;
         }
@@ -52,7 +52,7 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
             // rc < 0 => check errno
             if (errno == EAGAIN) {
                 // check for spurious wakeups
-                if (handle->state.load(std::memory_order_acquire) != 1) {
+                if (handle->state.load(std::memory_order_seq_cst) != 1) {
                     return;
                 }
             } else if (errno == EINTR) {
@@ -66,18 +66,22 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     }
 }
 
-void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_release); }
+void tparkBeginPark(tpark_handle_t *handle) {
+    handle->state.exchange(1, std::memory_order_seq_cst);
+}
 
-void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_release); }
+void tparkEndPark(tpark_handle_t *handle) {
+    handle->state.store(0, std::memory_order_seq_cst);
+}
 
 void tparkWake(tpark_handle_t *handle) {
-    if (handle->state.load(std::memory_order_acquire) == 0) {
+    if (handle->state.load(std::memory_order_seq_cst) == 0) {
         // No need to wake up, the thread is not parked
         return;
     }
 
     // Set the state to 0 => unpark
-    handle->state.store(0, std::memory_order_release);
+    handle->state.store(0, std::memory_order_seq_cst);
 
     // Wake one thread waiting on the futex
     futex_wake(&handle->state, 1);

@@ -20,13 +20,13 @@ tpark_handle_t *tparkCreateHandle() {
 void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     if (!unlocked) {
         // Indicate we want to park
-        handle->state.store(1, std::memory_order_release);
+        handle->state.store(1, std::memory_order_seq_cst);
     }
 
     // Wait until 'state' changes from 1 to something else.
     // If the call fails or returns (e.g. spurious wake), we re-check the state.
     ULONG expected = 1;
-    while (handle->state.load(std::memory_order_acquire) == expected) {
+    while (handle->state.load(std::memory_order_seq_cst) == expected) {
         const BOOL success = WaitOnAddress(
             /* Address        = */ &handle->state,
             /* CompareAddress = */ &expected,
@@ -46,18 +46,18 @@ void tparkWait(tpark_handle_t *handle, const bool unlocked) {
     }
 }
 
-void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_release); }
+void tparkBeginPark(tpark_handle_t *handle) { handle->state.store(1, std::memory_order_seq_cst); }
 
-void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_release); }
+void tparkEndPark(tpark_handle_t *handle) { handle->state.store(0, std::memory_order_seq_cst); }
 
 void tparkWake(tpark_handle_t *handle) {
-    if (handle->state.load(std::memory_order_acquire) == 0) {
+    if (handle->state.load(std::memory_order_seq_cst) == 0) {
         // No need to wake up, the thread is not parked
         return;
     }
 
     // Set the state to 0, signaling that any parked thread should wake.
-    handle->state.store(0, std::memory_order_release);
+    handle->state.store(0, std::memory_order_seq_cst);
 
     // Wake exactly one waiter waiting on &handle->state with the compare-value=1
     WakeByAddressSingle(&handle->state);
