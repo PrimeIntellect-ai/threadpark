@@ -49,13 +49,9 @@ THREAD_PARK_EXPORT tpark_handle_t *tparkCreateHandle(void);
  * This call sets an internal "park bit" to indicate that the thread
  * is about to block. It does NOT actually block the calling thread.
  *
- * Typical usage:
- *  1. Acquire your own user-level lock (e.g., a mutex).
- *  2. If some condition requires blocking (e.g., a queue is empty),
- *     call tparkBeginPark(handle).
- *  3. Optionally re-check your condition (still empty?).
- *  4. Unlock your mutex and then call @ref tparkParkWait with
- *     `unlocked = true` to perform the actual block.
+ * Using @ref tparkBeginPark in conjunction with @ref tparkWait allows you to ensure
+ * that if another thread calls @ref tparkWake between begin and wait, the
+ * wait will not block.
  *
  * This two-step approach avoids "lost wake-ups" by ensuring that if
  * another thread calls @ref tparkWake while you are deciding to park,
@@ -87,6 +83,14 @@ THREAD_PARK_EXPORT void tparkBeginPark(tpark_handle_t *handle);
  *                 was already set by @ref tparkBeginPark:
  *                   - false => This call sets the bit itself, then blocks.
  *                   - true  => The bit is assumed to be set already; just block if still needed.
+ *
+ * @warning tparkWait unblocks *fast*. It is your responsibility to ensure that any state you access after waking
+ * up is already visible to the waking thread. If you are accessing state that the waking thread modified moments
+ * before waking you up, it may not be visible to you yet. Make sure to use the appropriate memory barriers.
+ * @warning The futex wake implementation may not use seq-cst writes. Even seq-cst ordering for all your writes
+ * may not guarantee that the observed state is up-to-date. It may be sequentially consistent and un-teared, but
+ * not guaranteed up-to-date. It is likely you will not be able to avoid some form of looping in the waking thread
+ * until all state is visible.
  */
 THREAD_PARK_EXPORT void tparkWait(tpark_handle_t *handle, bool unlocked);
 
