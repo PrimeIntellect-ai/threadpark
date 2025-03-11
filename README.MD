@@ -159,6 +159,27 @@ cmake -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=c++ -DCMAKE_BUILD_TYPE=Release 
 cmake --build . --config Release --parallel
 ```
 
+### Recommended way to use the threadpark library
+
+The recommended way to use threadpark in a C/C++ project is to clone the repository and link against the threadpark library in
+CMake:
+
+```bash
+git clone --recurse https://github.com/PrimeIntellect-ai/threadpark.git
+```
+
+Then add the newly cloned repository as a subdirectory in your CMakeLists file:
+
+```cmake
+add_subdirectory(threadpark)
+```
+
+Then link against the threadpark library
+
+```cmake
+target_link_libraries(YourTarget PRIVATE threadpark)
+```
+
 ## Testing
 
 ### C++ Tests
