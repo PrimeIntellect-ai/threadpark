@@ -68,13 +68,13 @@ THREAD_PARK_EXPORT void tparkBeginPark(tpark_handle_t *handle);
  * thread wakes it via @ref tparkWake. The behavior depends on
  * the `unlocked` parameter:
  *
- * - If `unlocked = false`, @ref tparkParkWait will first set
+ * - If `unlocked = false`, @ref tparkWait will first set
  *   the "park bit" (as if @ref tparkBeginPark had been called),
  *   then immediately attempt to block.
  *
  * - If `unlocked = true`, it assumes you have already called
  *   @ref tparkBeginPark while holding your own lock, and then
- *   released that lock. In this mode, @ref tparkParkWait
+ *   released that lock. In this mode, @ref tparkWait
  *   will immediately attempt to block the calling thread,
  *   but only if the internal "park bit" is still set.
  *
@@ -98,7 +98,7 @@ THREAD_PARK_EXPORT void tparkWait(tpark_handle_t *handle, bool unlocked);
  * @brief Conclude or "undo" the parking state (final phase).
  *
  * This function explicitly clears the internal "park bit." If the thread
- * was never actually blocked, or if @ref tparkParkWait already returned,
+ * was never actually blocked, or if @ref tparkWait already returned,
  * calling @ref tparkEndPark is a safe way to ensure the handle is
  * back in a non-parked state for future use.
  *
@@ -106,7 +106,7 @@ THREAD_PARK_EXPORT void tparkWait(tpark_handle_t *handle, bool unlocked);
  *  - If you used @ref tparkBeginPark but discovered you no longer need
  *    to block (e.g., another thread produced data in the meantime),
  *    call @ref tparkEndPark to revert the bit to an "unparked" state
- *    before actually calling @ref tparkParkWait.
+ *    before actually calling @ref tparkWait.
  *  - If you used the two-phase approach and your thread woke up, you
  *    can call @ref tparkEndPark once you are done (e.g., after reacquiring
  *    your mutex) to reset the handle for subsequent use.
@@ -118,7 +118,7 @@ THREAD_PARK_EXPORT void tparkEndPark(tpark_handle_t *handle);
 /**
  * @brief Wake a thread parked on the specified handle.
  *
- * Notifies a thread that is blocked in @ref tparkParkWait using the same
+ * Notifies a thread that is blocked in @ref tparkWait using the same
  * handle. If no thread is currently parked or in the process of parking,
  * this call has no effect.
  *
@@ -126,6 +126,14 @@ THREAD_PARK_EXPORT void tparkEndPark(tpark_handle_t *handle);
  *               Must have been created by @ref tparkCreateHandle.
  */
 THREAD_PARK_EXPORT void tparkWake(tpark_handle_t *handle);
+
+/**
+ * @brief Check if a thread is currently parked.
+ * @param handle Pointer to the thread parking handle.
+ * @return true if the thread is currently parked, false otherwise. This shall mean that it is blocked in @ref tparkWait or that @ref tparkBeginPark was called but @ref tparkWait was not yet called.
+ * @warning This is a best-effort function and may reflect outdated state in the moments after a state change.
+ */
+THREAD_PARK_EXPORT bool tparkIsParked(const tpark_handle_t *handle);
 
 /**
  * @brief Destroy an existing thread parking handle.
