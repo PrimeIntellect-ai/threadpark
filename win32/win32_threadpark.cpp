@@ -63,6 +63,10 @@ void tparkWake(tpark_handle_t *handle) {
     WakeByAddressSingle(&handle->state);
 }
 
+bool tparkIsParked(const tpark_handle_t *handle) {
+    return handle->state.load(std::memory_order_seq_cst) == 1;
+}
+
 void tparkDestroyHandle(const tpark_handle_t *handle) {
     delete handle;
 }
